@@ -1,0 +1,11 @@
+# Environment files
+Client/.env
+server/.env
+
+# Node modules
+Client/node_modules/
+server/node_modules/
+
+# System files (optional)
+.DS_Store
+Thumbs.db
