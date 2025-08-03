@@ -2,7 +2,12 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { createPost } from "./mcp.tool.js";
-import { z } from "zod";
+import { string, z } from "zod";
+// To install: npm i @tavily/core
+import { tavily } from '@tavily/core';
+
+
+
 
 const server = new McpServer({
     name: "example-server",
@@ -42,6 +47,101 @@ server.tool(
     const { status } = arg;
     return createPost(status);
 })
+
+server.registerTool(
+    "calculate-Bmi",
+    {
+        title:"BMI calculator",
+        description:"Calculate body Mass Index",
+        inputSchema:{
+            weightKg:z.number(),
+            heightM:z.number(),
+        }
+    },
+    async ({weightKg,heightM})=>({
+        content:[{
+            type:"text",
+            text:String(weightKg/(heightM*heightM))
+        }]
+    })
+)
+
+server.registerTool(
+    "fetchRealTimeData",
+    {
+        title:"Realtime Data Fetcher",
+        description:"enter query and get real time information about anything",
+        inputSchema:{query:z.string()}
+    },
+    async(arg)=>{
+       try {
+         const{query}=arg;
+ const tvly = tavily({ apiKey: "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" });
+ const response = await tvly.search(query)
+ 
+ 
+ const answer = response?.answer || response?.results?.[0]?.content||"No information founded for this query"
+ 
+         return {
+             content:[{type:"text",text:String(answer)}]
+         }
+       } catch (error) {
+        return{
+                    content:[{type:"text", text: `Error fetching real-time data: ${error.message}`}]
+        }
+       }
+    }
+)
+
+
+server.registerPrompt(
+    "review-code",
+    {
+        title: "Code Reviewer",
+        description: "Review code and provide feedback",
+        argsSchema:{code : z.string}
+    },
+    ({code})=>({
+
+        messages:[{
+            role:"user",
+            content:{
+                type:"text",
+                text:`Please review this code:\n\n${code}`
+            }
+        }]
+    })
+)
+
+
+server.registerPrompt(
+    "team-greeting",
+    {
+        title: "Team Greeting",
+        description: "Welcome team members and provide information about the team",
+        argsSchema:completable(z.string(),(value)=>{
+            return ["engineering","sales","marketing","support"].filter((d=>d.startsWith(value)))
+        }),
+        name:completable(z.string(),(value,context)=>{
+            const department = context?.arguments?.["department"];
+             if (department === "engineering") {
+          return ["Alice", "Bob", "Charlie"].filter(n => n.startsWith(value));
+        } else if (department === "sales") {
+          return ["David", "Eve", "Frank"].filter(n => n.startsWith(value));
+        } else if (department === "marketing") {
+          return ["Grace", "Henry", "Iris"].filter(n => n.startsWith(value));
+        }
+        return ["Guest"].filter(n => n.startsWith(value));
+        })
+    }
+)
+
+
+
+
+
+
+
 
 
 // to support multiple simultaneous connections we have a lookup object from
