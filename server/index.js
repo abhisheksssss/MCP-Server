@@ -6,7 +6,7 @@ import { string, z } from "zod";
 // To install: npm i @tavily/core
 import { tavily } from '@tavily/core';
 
-
+import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 
 
 const server = new McpServer({
@@ -115,16 +115,19 @@ server.registerPrompt(
 
 
 server.registerPrompt(
-    "team-greeting",
-    {
-        title: "Team Greeting",
-        description: "Welcome team members and provide information about the team",
-        argsSchema:completable(z.string(),(value)=>{
-            return ["engineering","sales","marketing","support"].filter((d=>d.startsWith(value)))
-        }),
-        name:completable(z.string(),(value,context)=>{
-            const department = context?.arguments?.["department"];
-             if (department === "engineering") {
+  "team-greeting",
+  {
+    title: "Team Greeting",
+    description: "Generate a greeting for team members",
+    argsSchema: {
+      department: completable(z.string(), (value) => {
+        // Department suggestions
+        return ["engineering", "sales", "marketing", "support"].filter(d => d.startsWith(value));
+      }),
+      name: completable(z.string(), (value, context) => {
+        // Name suggestions based on selected department
+        const department = context?.arguments?.["department"];
+        if (department === "engineering") {
           return ["Alice", "Bob", "Charlie"].filter(n => n.startsWith(value));
         } else if (department === "sales") {
           return ["David", "Eve", "Frank"].filter(n => n.startsWith(value));
@@ -132,10 +135,19 @@ server.registerPrompt(
           return ["Grace", "Henry", "Iris"].filter(n => n.startsWith(value));
         }
         return ["Guest"].filter(n => n.startsWith(value));
-        })
+      })
     }
-)
-
+  },
+  ({ department, name }) => ({
+    messages: [{
+      role: "assistant",
+      content: {
+        type: "text",
+        text: `Hello ${name}, welcome to the ${department} team!`
+      }
+    }]
+  })
+);
 
 
 
